@@ -58,19 +58,39 @@ def underline_text(text):
 	return f"\033[4m{text}\033[0m"
 
 def invert_background(text, color=None):
-    """
-    Args:
-        text (str): 텍스트
-        color (str | tuple, optional): 텍스트 색상 (기본값: None)
-    Returns:
-        str: 배경이 반전된 텍스트
-    """
-    # 텍스트 색상이 주어지면 색상 변경
-    if color:
-        text = colored_text(text, color)
+	"""
+	Args:
+		text (str): 텍스트
+		color (str | tuple, optional): 텍스트 색상 (기본값: None)
+	Returns:
+		str: 배경이 반전된 텍스트
+	"""
+	# 텍스트 색상이 주어지면 색상 변경
+	if color:
+		text = colored_text(text, color)
 
-    # 배경 반전 (색상 반전)
-    return f"\033[7m{text}\033[0m"
+	# 배경 반전 (색상 반전)
+	return f"\033[7m{text}\033[0m"
+
+def remove_invert_background(text):
+	"""
+	Args:
+		text (str): 텍스트
+
+	Returns:
+		str: 색상 반전이 해제된 텍스트
+	"""
+	# 색상 반전 ANSI 코드가 포함되어 있는지 확인
+	if "\033[7m" in text:
+		# 색상 반전 ANSI 코드 제거
+		# 색상 반전 시작 코드와 종료 코드 제거
+		text = re.sub(r'\033\[7m', '', text)  # 색상 반전 시작 코드 제거
+		text = re.sub(r'\033\[0m', '', text)  # 기본 ANSI 종료 코드 제거
+		
+		return text
+	else:
+		# 색상 반전 ANSI 코드가 사용되지 않았다면 입력 텍스트 그대로 반환
+		return text
 
 def is_ansi_codes(text):
 	"""
@@ -97,7 +117,7 @@ def remove_ansi_codes(text):
 # print("***")
 # print("****")
 # print("*****")
-# print("                 |", end="\r")
+# print("				 |", end="\r")
 # b = input("> ")
 # a = 'apple'
 # a = colored_text(a, "red")
