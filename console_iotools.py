@@ -2,11 +2,6 @@ import sys
 import os
 
 
-def move_cursor(x, y):
-	"""커서를 (y, x) 위치로 즉시 이동하는 함수."""
-	sys.stdout.write(f"\033[{y};{x}H")  # 커서 이동
-	sys.stdout.flush()  # 즉시 반영
-
 def console_size():
 	"""현재 콘솔 화면의 크기를 가져오는 함수."""
 	try:
@@ -37,14 +32,88 @@ def clear_console(start=(0, 0), end=None):
 			if start[1] < end_col:
 				print(f"\033[{row};{start[1]}H\033[{end_col - start[1]}X")  # 해당 행의 특정 열 
 
+def area_print(text, start, end, line_strip=True):
+	"""
+	Args:
+		text: <str>
+		start: (x, y)
+		end: (x, y)
+	"""
+	width = end[0] - start[0]
+	height = end[1] - start[1]
+	lines = []
+	line = ''
+	for c in text:
+		if c == '\n':
+			lines.append(line)
+			line = ''
+		elif len(line) >= width:
+			lines.append(line)
+			line = c
+		else:
+			line += c
+	lines.append(line)
+	line_numse = min(height, len(lines))
+	for i in range(line_numse):
+		move_cursor(start[0], start[1]+i)
+		if line_strip:
+			print(lines[i].strip(), end='')
+		else:
+			print(lines[i], end='')
+
+def area_clear(start, end):
+	width = end[0] - start[0]
+	height = end[1] - start[1]
+	for i in range(height):
+		move_cursor(start[0], start[1]+i)
+		print(' ' * width, end='')
+
 # 환경 차이 있는 함수들
 if os.name == 'nt':
 	import msvcrt
+	# from ctypes import windll, c_int, c_short, Structure, byref
+	import colorama
+
+	colorama.init()
 
 	def getch():
-		return	msvcrt.getch().decode('utf-8')
+		ch = msvcrt.getch()
+		if ch == b'\xe0':  # 화살표 키 입력의 시작 바이트
+			ch = msvcrt.getch()  # 다음 바이트를 읽어 화살표 키를 결정
+			if ch == b'H':
+				return 'UP'  # 위쪽 화살표
+			elif ch == b'P':
+				return 'DOWN'  # 아래쪽 화살표
+			elif ch == b'K':
+				return 'LEFT'  # 왼쪽 화살표
+			elif ch == b'M':
+				return 'RIGHT'  # 오른쪽 화살표
+			elif ch == b'7':
+				return 'HOME'  # 홈 키
+			elif ch == b'8':
+				return 'PAGE_UP'  # 페이지 업
+			elif ch == b'9':
+				return 'PAGE_DOWN'  # 페이지 다운
+			elif ch == b'0':
+				return 'END'  # 끝 키
+		elif ch == b'\r':  # 엔터 키
+			return 'ENTER'
+		elif ch == b'\x08':  # 백스페이스
+			return 'BACKSPACE'
+		elif ch == b'\t':  # 탭
+			return 'TAB'
+		elif ch == b'\x1b':  # ESC 키
+			return 'ESC'
+		else:
+			return ch.decode('utf-8')
 
-else: # Unix
+	def move_cursor(x, y):
+		# colorama.init()
+		print(f"\033[{y+1};{x+1}H", end="")
+		# colorama.deinit()
+
+
+else:  # Unix
 	import tty
 	import termios
 
@@ -54,7 +123,42 @@ else: # Unix
 		try:
 			tty.setraw(sys.stdin.fileno())
 			ch = sys.stdin.read(1)
+
+			if ch == '\x1b':  # ANSI escape sequence의 시작
+				next_char = sys.stdin.read(2)  # 다음 두 문자 읽기
+				if next_char == '[A':
+					return 'UP'  # 위쪽 화살표
+				elif next_char == '[B':
+					return 'DOWN'  # 아래쪽 화살표
+				elif next_char == '[D':
+					return 'LEFT'  # 왼쪽 화살표
+				elif next_char == '[C':
+					return 'RIGHT'  # 오른쪽 화살표
+				elif next_char == '[H':
+					return 'HOME'  # 홈 키
+				elif next_char == '[5~':
+					return 'PAGE_UP'  # 페이지 업
+				elif next_char == '[6~':
+					return 'PAGE_DOWN'  # 페이지 다운
+				elif next_char == '[F':
+					return 'END'  # 끝 키
+				else:
+					return ch  # 다른 ANSI 시퀀스
+			elif ch == '\n':  # 엔터 키
+				return 'ENTER'
+			elif ch == '\x7f':  # 백스페이스
+				return 'BACKSPACE'
+			elif ch == '\t':  # 탭
+				return 'TAB'
+			elif ch == '\x1b':  # ESC 키
+				return 'ESC'
+			else:
+				return ch
 		finally:
 			termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-		return ch
+
+	def move_cursor(x, y):
+		"""커서를 (y, x) 위치로 즉시 이동하는 함수."""
+		sys.stdout.write(f"\033[{y+1};{x+1}H")  # 커서 이동
+		sys.stdout.flush()  # 즉시 반영
 
